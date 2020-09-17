@@ -1,3 +1,18 @@
+/*
+ * Ryan Paulos
+ * CS 425 - Digital Forensics
+ * Assignment 2
+ * "basically a hex editor"
+ *
+ *  Program requires three arguments: 
+ *
+ *  ARG1: hex address of memory to begin write
+ *  ARG2: machine code, in hex, to write
+ *  ARG3: path to binary file
+ *  
+ */
+
+
 #include<stdio.h>
 #include<string.h>
 #include<errno.h>
@@ -5,25 +20,26 @@
 
 
 
-FILE* writePrep(int, char*, char*);
+FILE* writePrep(int, char*, char*, char*);
 void writeBytes(FILE*, char []);
+int hexCheck(char []);
 
 int main(int argc, char* argv[]) {
     
     // Arg check, open file, fseek offset, 
-    FILE *binaryfile = writePrep(argc, argv[1], argv[3]); 
-
+    FILE *binaryfile = writePrep(argc, argv[1], argv[2], argv[3]); 
+    
+    // Parsing and writing machine code
     writeBytes(binaryfile, argv[2]);
 
     fclose(binaryfile);
-
     return 0;
 }
 
 /* 
  *  Returns file pointer loaded at the 
  *  user-defined offset, ready for writing.  */
-FILE* writePrep(int argc, char *hex_address, char *filepath) {
+FILE* writePrep(int argc, char *hex_address, char *machine_code, char *filepath) {
 
     // Check arg count
     if (argc != 4) {
@@ -31,6 +47,16 @@ FILE* writePrep(int argc, char *hex_address, char *filepath) {
         exit(1);
     }
 
+    // screen machineCode for invalid hex characters
+    if (hexCheck(hex_address) != 0) {
+        printf("Invalid [address]. Terminating..\n");
+        exit(2);
+    }
+
+    if (hexCheck(machine_code) != 0) {
+        printf("Invalid [machineCode]. Terminating..\n");
+        exit(3);
+    }
     // Open designated binary file
     FILE *filestream = fopen(filepath, "r+b");
     if (filestream == NULL) {
@@ -69,17 +95,14 @@ void writeBytes(FILE *binaryfile, char machine_code[]) {
     // Staging prepending variables
     char evenified_mc[strlen(machine_code)+2];
     evenified_mc[0] = '\0';
-    printf("even string:<%s>\n", evenified_mc);
 
     /* Check if prepending is necessary */
     if ((strlen(machine_code) % 2) == 1) {
-        printf("Need to evenify the string\n");
         evenified_mc[0] = '0';
         evenified_mc[1] = '\0';
     }
     /* utilize evenified_mc regardless of mod result (to simplify things.) */
     strcat(evenified_mc, machine_code);
-    printf("our new string: <%s>\n", evenified_mc);
 
     /* At this stage evenified_mc is the machine code string to use. */
     /* Preparing to loop through machine code */
@@ -95,67 +118,28 @@ void writeBytes(FILE *binaryfile, char machine_code[]) {
         hexpair[0] = evenified_mc[mc_index++];
         hexpair[1] = evenified_mc[mc_index++];
         hexpair[2] = '\0';
-        printf("hexpair: (%c, %c)\n", hexpair[0], hexpair[1]);
         int sscanf_ret  = sscanf(hexpair, "%x", &newval);
 
-        printf("newval: %u\nret:%d", newval, sscanf_ret);
         if (sscanf_ret == 0) {
-            printf("error reading hexpair:%c, %c\n", hexpair[0], hexpair[1]);
-            printf("file state cannot be guaranteed. Terminating..\n");
+            printf("sscanf error on chars (%c, %c)\nFile state not guaranteed. Terminating..\n", hexpair[0], hexpair[1]);
             return; 
         }
         fwrite(&newval, 1, 1, binaryfile);
         chars_remaining -= 2;
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        // turn argv[2] from an ASCII representation of hex values
-    // to int values we can write to a file
-//    int len = strlen(machine_code); 
-//    unsigned int newvals[len]; 
-//    char tmp;
-//
-//    // Trying new approach - Translate and print as we go
-//    for (int i=0;i<len;i++) {
-//        tmp = machine_code[i];
-//        printf("character to translate %c\n", machine_code[i]);
-//        int ret = sscanf(&tmp, "%x", newvals+i);
-//        if (ret == 0) {
-//            printf("sscanf failed to convert <%c> to int representation\n", tmp);
-//            printf("File state cannot be guaranteed.\nTerminating");
-//            printf("Terminating\n");
-//            return;
-//        }
-//        printf("value in newvals: %u\nRet val: %d\n", newvals[i], ret);
-//    }
-//
-//
-//    for (int i=0;i<len;i++) {
-//        printf("%u\n", newvals[i]);
-//    }
-    // Now writing the new binary values to the file 
-    //for (int i=0;i<len;i++) {
-        //ret = fwrite(&newvals[i], 1, 1, file);
-        //if (ferror(file) != 0) {
-         //   printf("encountered error writing binary to file\n No guarantee of file state.\n");
-          //  exit(4);
-       // }
-    //}
-
 }
+
+
+int hexCheck(char hexstring[]) {
+
+    unsigned long i = 0;
+    while (hexstring[i] != '\0') {
+        char tmp = hexstring[i++];
+        if (tmp >= 97 && tmp <= 102) continue;
+        if (tmp >= 65 && tmp <= 70) continue;
+        if (tmp >= 48 && tmp <= 57) continue;
+
+        printf("<%c> isn't valid hex\n", tmp);
+        return 1;
+    }
+    return 0; }
